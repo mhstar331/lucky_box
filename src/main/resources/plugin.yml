@@ -4,5 +4,9 @@ main: org.example.Main
 api-version: 1.21
 commands:
   lucky_box:
-    description: Opens the lucky box
-    usage: /<command>
+    description: Lucky Box 플러그인 명령어
+    usage: /lucky_box <open|config>
+    aliases: [lb]
+    subcommands:
+      - open
+      - config

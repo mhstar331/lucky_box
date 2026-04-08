@@ -2,25 +2,13 @@
 lucky_box:
   # 각 슬롯의 아이템 (0~8번 슬롯)
   items:
-    0: "DIAMOND"
-    1: "GOLD_BLOCK"
-    2: "IRON_BLOCK"
-    3: "EMERALD_BLOCK"
+    0: "AIR"
+    1: "AIR"
+    2: "AIR"
+    3: "AIR"
     4: "AIR"
-    5: "DIAMOND_BLOCK"
-    6: "LAPIS_BLOCK"
-    7: "REDSTONE_BLOCK"
-    8: "AMETHYST_BLOCK"
-
-  # 각 슬롯의 확률 (합계 100)
-  chances:
-    0: 10
-    1: 10
-    2: 10
-    3: 10
-    4: 0
-    5: 15
-    6: 15
-    7: 15
-    8: 15
+    5: "AIR"
+    6: "AIR"
+    7: "AIR"
+    8: "AIR"
 

@@ -16,13 +16,17 @@ import org.bukkit.event.Listener
 import org.bukkit.event.EventHandler
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.inventory.InventoryDragEvent
+import org.bukkit.event.inventory.InventoryCloseEvent
+import net.kyori.adventure.text.Component
 import java.util.UUID
 
 class Main : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
     private val luckyBoxInventories = mutableMapOf<UUID, LuckyBoxInventory>()
+    private val configInventories = mutableSetOf<UUID>()
 
     override fun onEnable() {
         logger.info("Lucky Box 플러그인이 활성화되었습니다!")
+        saveDefaultConfig()
         val cmd = getCommand("lucky_box")
         cmd?.setExecutor(this)
         cmd?.setTabCompleter(this)
@@ -34,34 +38,83 @@ class Main : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
     }
 
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<String>): Boolean {
-        if (sender is Player) {
-            val inventory = Bukkit.createInventory(null, 9, "Lucky Box") as Inventory
-            val luckyBox = LuckyBoxInventory(this, inventory)
-            luckyBoxInventories[sender.uniqueId] = luckyBox
-            luckyBox.startAnimation(inventory, sender)
-            sender.openInventory(inventory)
-        } else {
+        if (sender !is Player) {
             sender.sendMessage("Only players can use this command.")
+            return true
+        }
+
+        if (args.isEmpty()) {
+            sender.sendMessage("Usage: /lucky_box <open|config>")
+            return true
+        }
+
+        when (args[0]) {
+            "open" -> {
+                val inventory = Bukkit.createInventory(null, 9, Component.text("Lucky Box"))
+                val luckyBox = LuckyBoxInventory(this, inventory)
+                luckyBoxInventories[sender.uniqueId] = luckyBox
+                luckyBox.startAnimation(inventory, sender)
+                sender.openInventory(inventory)
+            }
+            "config" -> {
+                val configInventory = Bukkit.createInventory(null, 9, Component.text("Lucky Box Config"))
+                loadConfigToInventory(configInventory)
+                configInventories.add(sender.uniqueId)
+                sender.openInventory(configInventory)
+            }
+            else -> sender.sendMessage("Usage: /lucky_box <open|config>")
         }
         return true
     }
 
     override fun onTabComplete(sender: CommandSender, command: Command, alias: String, args: Array<String>): List<String>? {
+        if (args.size == 1) {
+            return listOf("open", "config")
+        }
         return emptyList()
     }
 
     @EventHandler
     fun onInventoryClick(event: InventoryClickEvent) {
-        if (event.view.title == "Lucky Box") {
+        if (event.view.title() == Component.text("Lucky Box")) {
             event.isCancelled = true
         }
     }
 
     @EventHandler
     fun onInventoryDrag(event: InventoryDragEvent) {
-        if (event.view.title == "Lucky Box") {
+        if (event.view.title() == Component.text("Lucky Box")) {
             event.isCancelled = true
         }
+    }
+
+    @EventHandler
+    fun onInventoryClose(event: InventoryCloseEvent) {
+        if (event.view.title() == Component.text("Lucky Box Config")) {
+            val player = event.player as Player
+            if (configInventories.contains(player.uniqueId)) {
+                saveConfigFromInventory(event.inventory)
+                configInventories.remove(player.uniqueId)
+            }
+        }
+    }
+
+    private fun loadConfigToInventory(inventory: Inventory) {
+        for (i in 0..8) {
+            val item = config.getItemStack("lucky_box.items.$i")
+            if (item != null) {
+                inventory.setItem(i, item)
+            }
+        }
+    }
+
+    private fun saveConfigFromInventory(inventory: Inventory) {
+        for (i in 0..8) {
+            config.set("lucky_box.items.$i", inventory.getItem(i))
+        }
+
+        saveConfig()
+        logger.info("Lucky Box 설정이 저장되었습니다!")
     }
 }
 
@@ -89,14 +142,12 @@ class LuckyBoxInventory(private val plugin: Main, private val inventory: Invento
     private fun updatePattern(inventory: Inventory, patternType: Int) {
         val lightBluePane = ItemStack(Material.LIGHT_BLUE_STAINED_GLASS_PANE).apply {
             itemMeta = itemMeta?.apply {
-                setDisplayName("")
-                lore = null
+                displayName(Component.empty())
             }
         }
         val yellowPane = ItemStack(Material.YELLOW_STAINED_GLASS_PANE).apply {
             itemMeta = itemMeta?.apply {
-                setDisplayName("")
-                lore = null
+                displayName(Component.empty())
             }
         }
 

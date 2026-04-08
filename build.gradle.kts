@@ -30,3 +30,14 @@ tasks.jar {
     archiveVersion.set("")
     from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
 }
+
+tasks.register<Copy>("copyToServer") {
+    dependsOn(tasks.jar)
+    from(tasks.jar.get().archiveFile)
+    into("C:/Users/USER/Desktop/마크 관련/럭키박스 서버/plugins")
+}
+
+tasks.build {
+    finalizedBy("copyToServer")
+}
+
