@@ -1,6 +1,6 @@
 name: LuckyBox
 version: 1.0-SNAPSHOT
-main: org.example.Main
+main: com.github.mhstar331.lucky_box.Main
 api-version: 1.21
 commands:
   lucky_box:

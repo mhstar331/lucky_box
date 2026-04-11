@@ -1,4 +1,4 @@
-package org.example
+package com.github.mhstar331.lucky_box
 
 import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.command.Command
