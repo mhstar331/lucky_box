@@ -1,12 +1,22 @@
 name: LuckyBox
-version: 1.0-SNAPSHOT
+version: 1.0
 main: com.github.mhstar331.lucky_box.Main
 api-version: 1.21
+author: mhstar331
+description: Lucky Box 플러그인 - 랜덤 아이템 박스 시스템
+
 commands:
   lucky_box:
-    description: Lucky Box 플러그인 명령어
-    usage: /lucky_box <open|config>
+    description: Lucky Box 메인 명령어
+    usage: /<command> <open|config>
     aliases: [lb]
-    subcommands:
-      - open
-      - config
+    permission: luckybox.use
+    permission-message: "§c이 명령어를 사용할 권한이 없습니다."
+
+permissions:
+  luckybox.use:
+    description: 럭키박스를 열 수 있는 기본 권한
+    default: true # 모든 유저에게 기본 부여
+  luckybox.admin:
+    description: 럭키박스 설정을 변경할 수 있는 관리자 권한
+    default: op # OP 유저에게만 기본 부여

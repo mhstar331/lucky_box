@@ -57,6 +57,11 @@ class Main : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
                 sender.openInventory(inventory)
             }
             "config" -> {
+                // 권한 확인: luckybox.admin 권한이 있는지 체크
+                if (!sender.hasPermission("luckybox.admin")) {
+                    sender.sendMessage(Component.text("§c이 명령어를 사용할 권한이 없습니다."))
+                    return true
+                }
                 val configInventory = Bukkit.createInventory(null, 9, Component.text("Lucky Box Config"))
                 loadConfigToInventory(configInventory)
                 configInventories.add(sender.uniqueId)
@@ -69,7 +74,20 @@ class Main : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
 
     override fun onTabComplete(sender: CommandSender, command: Command, alias: String, args: Array<String>): List<String>? {
         if (args.size == 1) {
-            return listOf("open", "config")
+            val completions = mutableListOf<String>()
+
+            // "open"은 luckybox.use 권한 체크
+            if (sender.hasPermission("luckybox.use")) {
+                completions.add("open")
+            }
+
+            // "config"는 오직 luckybox.admin 권한이 있는 사람에게만 추천
+            if (sender.hasPermission("luckybox.admin")) {
+                completions.add("config")
+            }
+
+            // 현재 입력 중인 글자(args[0])와 일치하는 것만 필터링해서 반환
+            return completions.filter { it.startsWith(args[0], ignoreCase = true) }
         }
         return emptyList()
     }
