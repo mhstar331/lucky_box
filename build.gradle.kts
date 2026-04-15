@@ -38,7 +38,7 @@ tasks.shadowJar {
 tasks.register<Copy>("copyToServer") {
     dependsOn("shadowJar")
     from(layout.buildDirectory.file("libs/Lucky_Box-${project.version}.jar"))
-    into("C:/Users/USER/Desktop/마크 관련/럭키박스 서버/plugins")
+    into("C:/Users/USER/Desktop/마크 관련/럭키박스 서버/plugins") // 복사할 서버의 플러그인 폴더 경로로 변경
 }
 
 // 4. 빌드 버튼 누르면 자동으로 복사까지 수행
