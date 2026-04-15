@@ -2,9 +2,9 @@
 lucky_box:
   cost:
     enabled: true          # 아이템 소모 여부 (true/false)
-    item: "DIAMOND"  # 소모할 아이템 종류
-    amount: 1           # 소모할 개수
-    display_name: "§6§l다이아몬드" # 메시지에 표시될 이름
+    item: DIAMOND  # 소모할 아이템 종류
+    amount: 10           # 소모할 개수
+    display_name: translatable:item.minecraft.diamond # 메시지에 표시될 이름
   # 각 슬롯의 아이템 (0~53번 슬롯)
   # 인게임에서 /lb config 명령어로 아이템을 넣고 창을 닫으면 자동으로 저장됩니다.
   items:

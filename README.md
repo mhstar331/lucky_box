@@ -1,16 +1,27 @@
 # lucky_box
-대충 만든 마크 럭키박스 플러그인(미완)                  
-### 권한
-[LuckPerms 플러그인](https://modrinth.com/plugin/luckperms/versions?g=1.21.11&l=paper)과 연동하여 권한이 있는 플레이어만 럭키박스를 사용할 수 있도록 설정할 수 있습니다.         
-- luckybox.use : 럭키박스를 사용할 수 있는 권한입니다. 이 권한이 없는 플레이어는 럭키박스를 사용할 수 없습니다.
-- luckybox.admin : 럭키박스의 관리자 권한입니다. 이 권한이 있는 플레이어는 럭키박스의 설정을 변경할 수 있습니다.
-#### LuckpPrms 플러그인 명령어 간단 정리
-- /lp creategroup [그룹 이름] : 그룹 생성
-- /lp deletegroup [그룹 이름] : 그룹 제거
-- /lp listgroups : 그룹 리스트
-- /lp user [이름] parent set [그룹 이름] : 유저를 그룹에 추가
-- /lp user [이름] parent remove [그룹 이름] : 유저를 그룹에서 제거
-- /lp group [그룹 이름] permission set [권한] : 그룹에 권한 부여
-- /lp group [그룹 이름] permission unset [권한] : 그룹에 권한 제거
-- /lp user [이름] permission set [권한] : 유처에게 권한 부여
-- /lp user [이름] permission unset [권한] : 유처에게 권한 제거
+대충 만든 마크 럭키박스 플러그인
+
+인게임 인벤토리를 통해 당첨 아이템을 설정하고, 특정 아이템을 비용으로 소모하여 뽑기를 진행하는 플러그인입니다.
+
+### 🎮 주요 명령어
+모든 명령어는 `/lucky_box`,`/luckybox`,`/lb`,`/럭키박스`로 사용 가능합니다.
+
+| 명령어 | 설명 | 권한 |
+| :--- | :--- | :--- |
+| `/lb open` | 럭키박스 뽑기 창을 엽니다. (설정된 비용 소모) | `luckybox.use` |
+| `/lb config` | 당첨 아이템을 설정하는 54칸 인벤토리를 엽니다. | `luckybox.admin` |
+| `/lb info` | 현재 설정된 비용 아이템, 개수, 활성화 여부를 확인합니다. | `luckybox.admin` |
+| `/lb cost <on/off>` | 비용 시스템 사용 여부를 설정합니다. | `luckybox.admin` |
+| `/lb setcost <코드> <개수> [이름]` | 비용 아이템 설정 (이름 생략 시 기본 이름 사용) | `luckybox.admin` |
+
+> **setcost 예시1:** `/lb setcost GOLD_INGOT 1 &6황금 코인`  
+> (색깔 코드는 `&`를 사용하여 입힐 수 있습니다.)
+
+> **setcost 예시2:** `/lb setcost GOLD_INGOT 1`   
+> (이름 생략 시 게임 내 기본 이름인 **"금 주괴"**(한글)로 자동 설정됩니다.)
+
+### 🔑 권한 (Permissions)
+[LuckPerms 플러그인](https://modrinth.com/plugin/luckperms/versions?g=1.21.11&l=paper) 등을 통해 권한을 관리할 수 있습니다.
+
+- **luckybox.use**: 럭키박스를 사용할 수 있는 기본 권한 (일반 유저)
+- **luckybox.admin**: 비용 설정 및 아이템 수정을 할 수 있는 관리자 권한 (OP 전용)

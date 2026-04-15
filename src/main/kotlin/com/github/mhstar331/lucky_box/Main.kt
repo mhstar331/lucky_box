@@ -28,7 +28,7 @@ class Main : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
         saveDefaultConfig()
         val cmd = getCommand("lucky_box")
         cmd?.setExecutor(this)
-        cmd?.setTabCompleter(this)
+        cmd?.tabCompleter = this
         server.pluginManager.registerEvents(this, this)
     }
 
@@ -40,7 +40,7 @@ class Main : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
         val enabled: Boolean,
         val material: Material,
         val amount: Int,
-        val displayName: String
+        val displayName: Component
     )
 
     // 설정을 불러오는 전용 함수
@@ -48,10 +48,16 @@ class Main : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
         val enabled = config.getBoolean("lucky_box.cost.enabled", true)
         val materialName = config.getString("lucky_box.cost.item", "DIAMOND")
         val amount = config.getInt("lucky_box.cost.amount", 1)
-        val displayName: String = config.getString("lucky_box.cost.display_name") ?: "&6&l다이아몬드"
+        val rawDisplayName = config.getString("lucky_box.cost.display_name") ?: "translatable:item.minecraft.diamond"
         val material = Material.matchMaterial(materialName ?: "DIAMOND") ?: Material.DIAMOND
+        // 핵심: translatable 접두사가 있으면 번역 컴포넌트로, 아니면 일반 텍스트로 변환
+        val displayNameComponent = if (rawDisplayName.startsWith("translatable:")) {
+            Component.translatable(rawDisplayName.removePrefix("translatable:"))
+        } else {
+            Component.text(rawDisplayName)
+        }
 
-        return LuckyBoxCost(enabled, material, amount, displayName)
+        return LuckyBoxCost(enabled, material, amount, displayNameComponent)
     }
 
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<String>): Boolean {
@@ -71,11 +77,17 @@ class Main : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
 
                 if (cost.enabled) {
                     if (!sender.inventory.containsAtLeast(ItemStack(cost.material), cost.amount)) {
-                        sender.sendMessage(Component.text("§c[Lucky Box] 아이템이 부족합니다! (필요: ${cost.displayName} ${cost.amount}개)"))
+                        val msg = Component.text("§c[Lucky Box] 아이템이 부족합니다! (필요: ")
+                            .append(cost.displayName)
+                            .append(Component.text(" §c${cost.amount}개)"))
+                        sender.sendMessage(msg)
                         return true
                     }
                     sender.inventory.removeItem(ItemStack(cost.material, cost.amount))
-                    sender.sendMessage(Component.text("§e[Lucky Box] ${cost.displayName} ${cost.amount}개를 사용하여 상자를 엽니다!"))
+                    val openMsg = Component.text("§e[Lucky Box] ")
+                        .append(cost.displayName)
+                        .append(Component.text(" §e${cost.amount}개를 사용하여 상자를 엽니다!"))
+                    sender.sendMessage(openMsg)
                 }
                 if (!sender.hasPermission("luckybox.use")) {
                     sender.sendMessage(Component.text("§c이 명령어를 사용할 권한이 없습니다."))
@@ -103,24 +115,19 @@ class Main : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
                     return true
                 }
 
-                if (args.size < 4) {
-                    sender.sendMessage(Component.text("§c사용법: /lucky_box setcost <아이템코드> <개수> <표시이름>"))
-                    sender.sendMessage(Component.text("§7예시: /lucky_box setcost DIAMOND 1 &6&l다이아몬드"))
+                // 최소 인자: /lb setcost <아이템> <개수> (총 3개)
+                if (args.size < 3) {
+                    sender.sendMessage(Component.text("§c사용법: /lucky_box setcost <아이템코드> <개수> [표시이름]"))
                     return true
                 }
 
                 val materialName = args[1].uppercase()
-
-                // 1. 양의 정수 체크
                 val amount = args[2].toIntOrNull()
+
                 if (amount == null || amount <= 0) {
                     sender.sendMessage(Component.text("§c개수는 1 이상의 숫자여야 합니다."))
                     return true
                 }
-
-                // 2. 색깔 코드 (& -> §) 변환 로직 추가
-                val rawDisplayName = args.slice(3 until args.size).joinToString(" ")
-                val displayName = rawDisplayName.replace("&", "§")
 
                 val material = Material.matchMaterial(materialName)
                 if (material == null) {
@@ -128,12 +135,27 @@ class Main : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
                     return true
                 }
 
+                // 표시이름 처리: 4번째 인자부터 합치기, 없으면 아이템 코드를 저장
+                val displayName = if (args.size >= 4) {
+                    args.slice(3 until args.size).joinToString(" ").replace("&", "§")
+                } else {
+                    "translatable:${material.translationKey()}" // 입력 안 하면 기본 아이템 이름 사용
+                }
+                val resultName = if (displayName.startsWith("translatable:")) {
+                    Component.translatable(displayName.removePrefix("translatable:"))
+                } else {
+                    Component.text(displayName)
+                }
+
                 config.set("lucky_box.cost.item", material.name)
                 config.set("lucky_box.cost.amount", amount)
                 config.set("lucky_box.cost.display_name", displayName)
                 saveConfig()
 
-                sender.sendMessage(Component.text("§a[Lucky Box] 비용 수정 완료! (이름: $displayName§a)"))
+                val successMsg = Component.text("§a[Lucky Box] 비용 설정 완료! (아이템: ")
+                    .append(resultName)
+                    .append(Component.text("§a)"))
+                sender.sendMessage(successMsg)
             }
             "cost" -> {
                 if (!sender.hasPermission("luckybox.admin")) {
@@ -169,7 +191,10 @@ class Main : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
                 val cost = getCostSettings()
                 sender.sendMessage(Component.text("§b§l[Lucky Box 설정 정보]"))
                 sender.sendMessage(Component.text("§f- 비용 시스템: ${if (cost.enabled) "§a활성화" else "§c비활성화"}"))
-                sender.sendMessage(Component.text("§f- 필요 아이템: §e${cost.displayName} §8(${cost.material})"))
+                val itemInfo = Component.text("§f- 필요 아이템: §e")
+                    .append(cost.displayName)
+                    .append(Component.text(" §8(${cost.material})"))
+                sender.sendMessage(itemInfo)
                 sender.sendMessage(Component.text("§f- 필요 개수: §6${cost.amount}개"))
             }
             else -> sender.sendMessage("Usage: /lucky_box <open | config | cost | setcost | info>")
@@ -207,21 +232,17 @@ class Main : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
         }
     }
 
-    @EventHandler
-    fun onInventoryClick(event: InventoryClickEvent) {
-        val view = event.view
-        val title = view.title()
-
-        // 1. 뽑기 창 (Lucky Box) - 아이템 클릭 방지
+    // 중복 로직을 처리할 공통 함수
+    private fun handleInventoryRestriction(event: org.bukkit.event.inventory.InventoryEvent, title: Component) {
+        // 1. 뽑기 창 (Lucky Box) - 모든 상호작용 방지
         if (title == Component.text("Lucky Box")) {
-            event.isCancelled = true
+            if (event is InventoryClickEvent) event.isCancelled = true
+            if (event is InventoryDragEvent) event.isCancelled = true
             return
         }
 
-        // 2. 설정 창 (Lucky Box Config) - 클릭할 때마다 실시간 저장
+        // 2. 설정 창 (Lucky Box Config) - 실시간 저장
         if (title == Component.text("Lucky Box Config")) {
-            // 스케줄러를 사용하는 이유: 클릭 직후에는 인벤토리 상태가 아직 변하기 전이라,
-            // 1틱 뒤(아이템이 옮겨진 후)에 저장해야 정확합니다.
             object : BukkitRunnable() {
                 override fun run() {
                     saveConfigFromInventory(event.inventory)
@@ -231,24 +252,13 @@ class Main : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
     }
 
     @EventHandler
+    fun onInventoryClick(event: InventoryClickEvent) {
+        handleInventoryRestriction(event, event.view.title())
+    }
+
+    @EventHandler
     fun onInventoryDrag(event: InventoryDragEvent) {
-        val view = event.view
-        val title = view.title()
-
-        // 1. 뽑기 창 (Lucky Box) - 드래그 방지
-        if (title == Component.text("Lucky Box")) {
-            event.isCancelled = true
-            return
-        }
-
-        // 2. 설정 창 (Lucky Box Config) - 드래그 직후 실시간 저장
-        if (title == Component.text("Lucky Box Config")) {
-            object : BukkitRunnable() {
-                override fun run() {
-                    saveConfigFromInventory(event.inventory)
-                }
-            }.runTaskLater(this, 1L) // 드래그가 완전히 끝난 1틱 뒤에 저장
-        }
+        handleInventoryRestriction(event, event.view.title())
     }
 
     private fun loadConfigToInventory(inventory: Inventory) {
@@ -282,14 +292,14 @@ class LuckyBoxInventory(private val plugin: Main, private val inventory: Invento
         val configItems = mutableListOf<ItemStack>()
         for (i in 0..53) {
             val item = plugin.config.getItemStack("lucky_box.items.$i")
-            if (item != null && item.type != org.bukkit.Material.AIR && item.amount > 0) {
+            if (item != null && item.type != Material.AIR && item.amount > 0) {
                 configItems.add(item)
             }
         }
 
         // 아이템이 없으면 종료
         if (configItems.isEmpty()) {
-            player.sendMessage(net.kyori.adventure.text.Component.text("§c[Lucky Box] 설정된 아이템이 없습니다! /lb config를 확인해주세요."))
+            player.sendMessage(Component.text("§c[Lucky Box] 설정된 아이템이 없습니다! /lb config를 확인해주세요."))
             player.closeInventory()
             return
         }
@@ -299,7 +309,7 @@ class LuckyBoxInventory(private val plugin: Main, private val inventory: Invento
     }
 
     private fun runVariableTickLoop(inventory: Inventory, player: Player, currentDelay: Long, configItems: List<ItemStack>) {
-        object : org.bukkit.scheduler.BukkitRunnable() {
+        object : BukkitRunnable() {
             override fun run() {
                 if (player.openInventory.topInventory != inventory) return
 
@@ -326,12 +336,12 @@ class LuckyBoxInventory(private val plugin: Main, private val inventory: Invento
 
     private fun updatePatternWithRandomItem(inventory: Inventory, patternType: Int, configItems: List<ItemStack>) {
         // 유리판 이름 회색으로 설정 (LuckyBox)
-        val displayName = net.kyori.adventure.text.Component.text("§8LuckyBox")
+        val displayName = Component.text("§8LuckyBox")
 
-        val lightBluePane = ItemStack(org.bukkit.Material.LIGHT_BLUE_STAINED_GLASS_PANE).apply {
+        val lightBluePane = ItemStack(Material.LIGHT_BLUE_STAINED_GLASS_PANE).apply {
             itemMeta = itemMeta?.apply { displayName(displayName) }
         }
-        val yellowPane = ItemStack(org.bukkit.Material.YELLOW_STAINED_GLASS_PANE).apply {
+        val yellowPane = ItemStack(Material.YELLOW_STAINED_GLASS_PANE).apply {
             itemMeta = itemMeta?.apply { displayName(displayName) }
         }
 
@@ -358,6 +368,6 @@ class LuckyBoxInventory(private val plugin: Main, private val inventory: Invento
         player.inventory.addItem(resultItem.clone())
 
         player.playSound(player.location, org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 0.8f)
-        player.sendMessage(net.kyori.adventure.text.Component.text("§6[Lucky Box] §f당첨! §b[${resultItem.type.name}]§f 아이템이 지급되었습니다."))
+        player.sendMessage(Component.text("§6[Lucky Box] §f당첨! §b[${resultItem.type.name}]§f 아이템이 지급되었습니다."))
     }
 }
