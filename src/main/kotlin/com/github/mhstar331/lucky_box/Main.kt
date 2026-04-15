@@ -61,7 +61,7 @@ class Main : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
         }
 
         if (args.isEmpty()) {
-            sender.sendMessage("Usage: /lucky_box <open|config|setcost>")
+            sender.sendMessage("Usage: /lucky_box <open | config | cost | setcost | info>")
             return true
         }
 
@@ -142,7 +142,7 @@ class Main : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
                 }
 
                 if (args.size < 2) {
-                    sender.sendMessage(Component.text("§c사용법: /lucky_box cost <on|off>"))
+                    sender.sendMessage(Component.text("§c사용법: /lucky_box cost <on | off>"))
                     return true
                 }
 
@@ -150,7 +150,7 @@ class Main : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
                     "on" -> true
                     "off" -> false
                     else -> {
-                        sender.sendMessage(Component.text("§c사용법: /lucky_box cost <on|off>"))
+                        sender.sendMessage(Component.text("§c사용법: /lucky_box cost <on | off>"))
                         return true
                     }
                 }
@@ -172,7 +172,7 @@ class Main : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
                 sender.sendMessage(Component.text("§f- 필요 아이템: §e${cost.displayName} §8(${cost.material})"))
                 sender.sendMessage(Component.text("§f- 필요 개수: §6${cost.amount}개"))
             }
-            else -> sender.sendMessage("Usage: /lucky_box <open|config|setcost>")
+            else -> sender.sendMessage("Usage: /lucky_box <open | config | cost | setcost | info>")
         }
         return true
     }
