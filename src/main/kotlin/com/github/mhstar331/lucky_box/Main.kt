@@ -20,10 +20,15 @@ import net.kyori.adventure.text.Component
 import java.util.UUID
 
 class Main : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
+    companion object {
+        lateinit var instance: Main
+            private set
+    }
     private val luckyBoxInventories = mutableMapOf<UUID, LuckyBoxInventory>()
     private val configInventories = mutableSetOf<UUID>()
 
     override fun onEnable() {
+        instance = this
         logger.info("Lucky Box 플러그인이 활성화되었습니다!")
         saveDefaultConfig()
         val cmd = getCommand("lucky_box")
