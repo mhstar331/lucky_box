@@ -21,8 +21,8 @@ import java.util.UUID
 
 class Main : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
     companion object {
+        @JvmStatic
         lateinit var instance: Main
-            private set
     }
     private val luckyBoxInventories = mutableMapOf<UUID, LuckyBoxInventory>()
     private val configInventories = mutableSetOf<UUID>()
