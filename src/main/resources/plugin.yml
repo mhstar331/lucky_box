@@ -1,6 +1,6 @@
 name: LuckyBox
 version: 1.0
-main: com.github.mhstar331.lucky_box.Main
+main: com.github.mhstar331.lucky_box.LuckyBox
 api-version: 1.21.11
 author: mhstar331
 description: Lucky Box 플러그인 - 랜덤 아이템 박스 시스템
