@@ -1,3 +1,4 @@
+import java.security.MessageDigest
 plugins {
     kotlin("jvm") version "2.3.10"
     // 1. ShadowJar 플러그인 추가 (현재 가장 안정적인 버전)
@@ -44,4 +45,36 @@ tasks.register<Copy>("copyToServer") {
 // 4. 빌드 버튼 누르면 자동으로 복사까지 수행
 tasks.build {
     finalizedBy("copyToServer")
+}
+tasks {
+    val resourcepacksFolder = file("resourcepacks")
+    val resourcepacksTasks = resourcepacksFolder.listFiles { file -> file.isDirectory }?.map { folder ->
+        register<Zip>("resourcepacksZip-${folder.name}") {
+            from(folder)
+            include("*")
+            include("*/**")
+            archiveFileName.set("${folder.name}.zip")
+            destinationDirectory.set(file("build/libs/"))
+
+            doLast {
+                val file = archiveFile.get().asFile
+                val bytes = MessageDigest.getInstance("SHA-1").digest(file.readBytes())
+                val hashString: String = bytes.joinToString("") { byte -> "%02X".format(byte) }
+
+                println("Generated Hash: $hashString")
+            }
+        }
+    }
+
+    register("resourcepacksZip") {
+        dependsOn(resourcepacksTasks)
+    }
+
+    register<Zip>("runZip") {
+        from(file("run"))
+        include("*")
+        include("*/**")
+        archiveFileName.set("server.zip")
+        destinationDirectory.set(file("build/libs/"))
+    }
 }
