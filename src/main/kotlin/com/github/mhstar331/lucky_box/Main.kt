@@ -19,10 +19,10 @@ import org.bukkit.event.inventory.InventoryDragEvent
 import net.kyori.adventure.text.Component
 import java.util.UUID
 
-class Main : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
+class LuckyBox : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
     companion object {
         @JvmStatic
-        lateinit var instance: Main
+        lateinit var instance: LuckyBox
     }
     private val luckyBoxInventories = mutableMapOf<UUID, LuckyBoxInventory>()
     private val configInventories = mutableSetOf<UUID>()
@@ -285,7 +285,7 @@ class Main : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
     }
 }
 
-class LuckyBoxInventory(private val plugin: Main, private val inventory: Inventory) : InventoryHolder {
+class LuckyBoxInventory(private val plugin: LuckyBox, private val inventory: Inventory) : InventoryHolder {
     override fun getInventory(): Inventory = inventory
 
     private var pattern = 0
