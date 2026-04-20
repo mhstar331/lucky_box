@@ -53,7 +53,7 @@ tasks {
             from(folder)
             include("*")
             include("*/**")
-            archiveFileName.set("${folder.name}.zip")
+            archiveFileName.set("resourcepack.zip")
             destinationDirectory.set(file("build/libs/"))
 
             doLast {

@@ -18,6 +18,7 @@ import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.inventory.InventoryDragEvent
 import net.kyori.adventure.text.Component
 import java.util.UUID
+import org.bukkit.event.player.PlayerJoinEvent
 
 class LuckyBox : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
     companion object {
@@ -254,6 +255,18 @@ class LuckyBox : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
                 }
             }.runTaskLater(this, 1L)
         }
+    }
+
+    fun Player.setLuckyBoxResourcePack() = setResourcePack(
+        "https://github.com/mhstar331/lucky_box/releases/latest/download/resourcepack.zip",
+        "99FE8C1206257B74D09A97209FBDF95BEB9FAE57",
+        false
+    )
+
+    @EventHandler
+    fun playerJoinEvent(event: PlayerJoinEvent) {
+        val player = event.player
+        player.setLuckyBoxResourcePack()
     }
 
     @EventHandler
