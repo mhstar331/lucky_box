@@ -8,7 +8,7 @@ description: Lucky Box 플러그인 - 랜덤 아이템 박스 시스템
 commands:
   lucky_box:
     description: Lucky Box 메인 명령어
-    usage: /<command> <open | config | cost | setcost | info>
+    usage: /<command> <config | item>
     aliases: [lb, luckybox,럭키박스]
     permission: luckybox.use
     permission-message: "§c이 명령어를 사용할 권한이 없습니다."

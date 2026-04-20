@@ -19,13 +19,15 @@ import org.bukkit.event.inventory.InventoryDragEvent
 import net.kyori.adventure.text.Component
 import java.util.UUID
 import org.bukkit.event.player.PlayerJoinEvent
+import org.bukkit.event.block.Action
+import org.bukkit.event.player.PlayerInteractEvent
 
 class LuckyBox : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
     companion object {
         @JvmStatic
         lateinit var instance: LuckyBox
     }
-    private val luckyBoxInventories = mutableMapOf<UUID, LuckyBoxInventory>()
+    val luckyBoxInventories = mutableMapOf<UUID, LuckyBoxInventory>()
     private val configInventories = mutableSetOf<UUID>()
 
     override fun onEnable() {
@@ -36,34 +38,11 @@ class LuckyBox : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
         cmd?.setExecutor(this)
         cmd?.tabCompleter = this
         server.pluginManager.registerEvents(this, this)
+        server.pluginManager.registerEvents(LuckyBoxItem(this), this)
     }
 
     override fun onDisable() {
         logger.info("Lucky Box 플러그인이 비활성화되었습니다!")
-    }
-    // 설정값들을 한 번에 묶어서 반환하는 데이터 클래스 (Main 클래스 밖에 선언하거나 안에 선언)
-    data class LuckyBoxCost(
-        val enabled: Boolean,
-        val material: Material,
-        val amount: Int,
-        val displayName: Component
-    )
-
-    // 설정을 불러오는 전용 함수
-    private fun getCostSettings(): LuckyBoxCost {
-        val enabled = config.getBoolean("lucky_box.cost.enabled", true)
-        val materialName = config.getString("lucky_box.cost.item", "DIAMOND")
-        val amount = config.getInt("lucky_box.cost.amount", 1)
-        val rawDisplayName = config.getString("lucky_box.cost.display_name") ?: "translatable:item.minecraft.diamond"
-        val material = Material.matchMaterial(materialName ?: "DIAMOND") ?: Material.DIAMOND
-        // 핵심: translatable 접두사가 있으면 번역 컴포넌트로, 아니면 일반 텍스트로 변환
-        val displayNameComponent = if (rawDisplayName.startsWith("translatable:")) {
-            Component.translatable(rawDisplayName.removePrefix("translatable:"))
-        } else {
-            Component.text(rawDisplayName)
-        }
-
-        return LuckyBoxCost(enabled, material, amount, displayNameComponent)
     }
 
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<String>): Boolean {
@@ -73,38 +52,11 @@ class LuckyBox : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
         }
 
         if (args.isEmpty()) {
-            sender.sendMessage("Usage: /lucky_box <open | config | cost | setcost | info>")
+            sender.sendMessage("Usage: /lucky_box <config | item>")
             return true
         }
 
         when (args[0].lowercase()) {
-            "open" -> {
-                val cost = getCostSettings()
-
-                if (cost.enabled) {
-                    if (!sender.inventory.containsAtLeast(ItemStack(cost.material), cost.amount)) {
-                        val msg = Component.text("§c[Lucky Box] 아이템이 부족합니다! (필요: ")
-                            .append(cost.displayName)
-                            .append(Component.text(" §c${cost.amount}개)"))
-                        sender.sendMessage(msg)
-                        return true
-                    }
-                    sender.inventory.removeItem(ItemStack(cost.material, cost.amount))
-                    val openMsg = Component.text("§e[Lucky Box] ")
-                        .append(cost.displayName)
-                        .append(Component.text(" §e${cost.amount}개를 사용하여 상자를 엽니다!"))
-                    sender.sendMessage(openMsg)
-                }
-                if (!sender.hasPermission("luckybox.use")) {
-                    sender.sendMessage(Component.text("§c이 명령어를 사용할 권한이 없습니다."))
-                    return true
-                }
-                val inventory = Bukkit.createInventory(null, 9, Component.text("Lucky Box"))
-                val luckyBox = LuckyBoxInventory(this, inventory)
-                luckyBoxInventories[sender.uniqueId] = luckyBox
-                luckyBox.startAnimation(inventory, sender)
-                sender.openInventory(inventory)
-            }
             "config" -> {
                 if (!sender.hasPermission("luckybox.admin")) {
                     sender.sendMessage(Component.text("§c이 명령어를 사용할 권한이 없습니다."))
@@ -115,95 +67,22 @@ class LuckyBox : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
                 configInventories.add(sender.uniqueId)
                 sender.openInventory(configInventory)
             }
-            "setcost" -> {
+            "item" -> {
                 if (!sender.hasPermission("luckybox.admin")) {
                     sender.sendMessage(Component.text("§c이 명령어를 사용할 권한이 없습니다."))
                     return true
                 }
-
-                // 최소 인자: /lb setcost <아이템> <개수> (총 3개)
-                if (args.size < 3) {
-                    sender.sendMessage(Component.text("§c사용법: /lucky_box setcost <아이템코드> <개수> [표시이름]"))
-                    return true
-                }
-
-                val materialName = args[1].uppercase()
-                val amount = args[2].toIntOrNull()
-
-                if (amount == null || amount <= 0) {
-                    sender.sendMessage(Component.text("§c개수는 1 이상의 숫자여야 합니다."))
-                    return true
-                }
-
-                val material = Material.matchMaterial(materialName)
-                if (material == null) {
-                    sender.sendMessage(Component.text("§c존재하지 않는 아이템 코드입니다: $materialName"))
-                    return true
-                }
-
-                // 표시이름 처리: 4번째 인자부터 합치기, 없으면 아이템 코드를 저장
-                val displayName = if (args.size >= 4) {
-                    args.slice(3 until args.size).joinToString(" ").replace("&", "§")
-                } else {
-                    "translatable:${material.translationKey()}" // 입력 안 하면 기본 아이템 이름 사용
-                }
-                val resultName = if (displayName.startsWith("translatable:")) {
-                    Component.translatable(displayName.removePrefix("translatable:"))
-                } else {
-                    Component.text(displayName)
-                }
-
-                config.set("lucky_box.cost.item", material.name)
-                config.set("lucky_box.cost.amount", amount)
-                config.set("lucky_box.cost.display_name", displayName)
-                saveConfig()
-
-                val successMsg = Component.text("§a[Lucky Box] 비용 설정 완료! (아이템: ")
-                    .append(resultName)
-                    .append(Component.text("§a)"))
-                sender.sendMessage(successMsg)
-            }
-            "cost" -> {
-                if (!sender.hasPermission("luckybox.admin")) {
-                    sender.sendMessage(Component.text("§c이 명령어를 사용할 권한이 없습니다."))
-                    return true
-                }
-
-                if (args.size < 2) {
-                    sender.sendMessage(Component.text("§c사용법: /lucky_box cost <on | off>"))
-                    return true
-                }
-
-                val enable = when (args[1].lowercase()) {
-                    "on" -> true
-                    "off" -> false
-                    else -> {
-                        sender.sendMessage(Component.text("§c사용법: /lucky_box cost <on | off>"))
-                        return true
+                val item = ItemStack(Material.PAPER).apply {
+                    itemMeta = itemMeta?.apply {
+                        setDisplayName("§6§l럭키박스")
+                        setCustomModelData(1)
                     }
                 }
-
-                config.set("lucky_box.cost.enabled", enable)
-                saveConfig()
-
-                val status = if (enable) "§a활성화" else "§c비활성화"
-                sender.sendMessage(Component.text("§a[Lucky Box] 비용 시스템이 ${status}§a되었습니다."))
+                sender.inventory.addItem(item)
+                sender.sendMessage(Component.text("§a럭키박스 아이템을 지급받았습니다!"))
+                return true
             }
-            "info" -> {
-                if (!sender.hasPermission("luckybox.admin")) {
-                    sender.sendMessage(Component.text("§c이 명령어를 사용할 권한이 없습니다."))
-                    return true
-                }
-                val cost = getCostSettings()
-                sender.sendMessage(Component.text("§b§l[Lucky Box 설정 정보]"))
-                sender.sendMessage(Component.text("§f- 비용 시스템: ${if (cost.enabled) "§a활성화" else "§c비활성화"}"))
-                val itemInfo = Component.text("§f- 필요 아이템: §e")
-                    .append(cost.displayName)
-                    .append(Component.text(" §8(${cost.material})"))
-                sender.sendMessage(itemInfo)
-                sender.sendMessage(Component.text("§f- 필요 개수: §6${cost.amount}개"))
-            }
-            else -> sender.sendMessage("Usage: /lucky_box <open | config | cost | setcost | info>")
+            else -> sender.sendMessage("Usage: /lucky_box <config | item>")
         }
         return true
     }
@@ -214,25 +93,11 @@ class LuckyBox : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
         return when (args.size) {
             1 -> {
                 val list = mutableListOf<String>()
-                if (sender.hasPermission("luckybox.use")) list.add("open")
                 if (sender.hasPermission("luckybox.admin")) {
                     list.add("config")
-                    list.add("setcost")
-                    list.add("cost")
-                    list.add("info") // info 추가
+                    list.add("item")
                 }
                 list.filter { it.startsWith(args[0], ignoreCase = true) }
-            }
-            2 -> {
-                if (args[0].equals("cost", ignoreCase = true) && sender.hasPermission("luckybox.admin")) {
-                    listOf("on", "off").filter { it.startsWith(args[1], ignoreCase = true) }
-                } else if (args[0].equals("setcost", ignoreCase = true) && sender.hasPermission("luckybox.admin")) {
-                    Material.entries
-                        .filter { it.isItem && it.name.startsWith(args[1], ignoreCase = true) }
-                        .map { it.name }
-                } else {
-                    emptyList()
-                }
             }
             else -> emptyList()
         }
@@ -384,8 +249,62 @@ class LuckyBoxInventory(private val plugin: LuckyBox, private val inventory: Inv
         // 결과 확정 및 실제 아이템 지급
         inventory.setItem(4, resultItem)
         player.inventory.addItem(resultItem.clone())
+        // 1. 아이템 이름 성분(Component) 생성
+        val itemNameComponent = if (resultItem.itemMeta?.hasDisplayName() == true) {
+            // 커스텀 이름이 있으면 그 이름을 그대로 사용
+            resultItem.itemMeta.displayName()!!
+        } else {
+            // 커스텀 이름이 없으면 마크 기본 번역 키 사용 (유저 언어에 맞춰짐)
+            Component.translatable(resultItem.translationKey())
+        }
 
         player.playSound(player.location, org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 0.8f)
-        player.sendMessage(Component.text("§6[Lucky Box] §f당첨! §b[${resultItem.type.name}]§f 아이템이 지급되었습니다."))
+        val msg = Component.text("§6[Lucky Box] §f당첨! §b[")
+            .append(itemNameComponent)
+            .append(Component.text("§b]§f 아이템이 지급되었습니다."))
+        player.sendMessage(msg)
+    }
+}
+class LuckyBoxItem(private val plugin: LuckyBox) : Listener {
+
+    @EventHandler
+    fun onPlayerInteract(event: PlayerInteractEvent) {
+        val player = event.player
+        val item = event.item ?: return // 손에 든 아이템이 없으면 무시
+
+        // 1. 우클릭 동작인지 확인 (공기 클릭 또는 블록 클릭)
+        if (event.action == Action.RIGHT_CLICK_AIR || event.action == Action.RIGHT_CLICK_BLOCK) {
+
+            // 2. 아이템 판별 (종이이면서 CustomModelData가 1인지 확인)
+            if (item.type == Material.PAPER && item.itemMeta?.hasCustomModelData() == true && item.itemMeta?.customModelData == 1) {
+
+                // 3. 권한 확인
+                if (!player.hasPermission("luckybox.use")) {
+                    player.sendMessage(Component.text("§c이 아이템을 사용할 권한이 없습니다."))
+                    return
+                }
+
+                // 4. 아이템 1개 소모
+                item.amount -= 1
+
+                // 5. 럭키박스 오픈 로직 실행
+                openLuckyBox(player)
+
+                // 이벤트 취소 (종이가 블록에 써지는 등의 기본 동작 방지)
+                event.isCancelled = true
+            }
+        }
+    }
+
+    private fun openLuckyBox(player: Player) {
+        val inventory = Bukkit.createInventory(null, 9, Component.text("Lucky Box"))
+        // 기존에 작성하신 LuckyBoxInventory 클래스 연결
+        val luckyBox = LuckyBoxInventory(plugin, inventory)
+        plugin.luckyBoxInventories[player.uniqueId] = luckyBox
+
+        luckyBox.startAnimation(inventory, player)
+        player.openInventory(inventory)
+
+        player.sendMessage(Component.text("§e[Lucky Box] 럭키박스를 열었습니다!"))
     }
 }
