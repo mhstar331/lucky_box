@@ -11,7 +11,7 @@ commands:
     usage: /<command> <config | item>
     aliases: [lb, luckybox,럭키박스]
     permission: luckybox.use
-    permission-message: "§c이 명령어를 사용할 권한이 없습니다."
+    permission-message: "이 명령어를 사용할 권한이 없습니다."
 
 permissions:
   luckybox.use:

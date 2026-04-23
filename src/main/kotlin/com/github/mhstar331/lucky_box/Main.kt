@@ -17,6 +17,8 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.inventory.InventoryDragEvent
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.format.TextDecoration
 import java.util.UUID
 import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.block.Action
@@ -47,19 +49,19 @@ class LuckyBox : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
 
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<String>): Boolean {
         if (sender !is Player) {
-            sender.sendMessage("Only players can use this command.")
+            sender.sendMessage(Component.text("플레이어만 이 명령어를 사용할 수 있습니다.", NamedTextColor.RED))
             return true
         }
 
         if (args.isEmpty()) {
-            sender.sendMessage("Usage: /lucky_box <config | item>")
+            sender.sendMessage(Component.text("사용법: /lucky_box <config | item>", NamedTextColor.RED))
             return true
         }
 
         when (args[0].lowercase()) {
             "config" -> {
                 if (!sender.hasPermission("luckybox.admin")) {
-                    sender.sendMessage(Component.text("§c이 명령어를 사용할 권한이 없습니다."))
+                    sender.sendMessage(Component.text("이 명령어를 사용할 권한이 없습니다.", NamedTextColor.RED))
                     return true
                 }
                 val configInventory = Bukkit.createInventory(null, 54, Component.text("Lucky Box Config"))
@@ -69,20 +71,21 @@ class LuckyBox : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
             }
             "item" -> {
                 if (!sender.hasPermission("luckybox.admin")) {
-                    sender.sendMessage(Component.text("§c이 명령어를 사용할 권한이 없습니다."))
+                    sender.sendMessage(Component.text("이 명령어를 사용할 권한이 없습니다.", NamedTextColor.RED))
                     return true
                 }
                 val item = ItemStack(Material.PAPER).apply {
                     itemMeta = itemMeta?.apply {
-                        setDisplayName("§6§l럭키박스")
+                        // §6§l 대신 Adventure 스타일 적용
+                        displayName(Component.text("럭키박스", NamedTextColor.GOLD).decoration(TextDecoration.BOLD, true))
                         setCustomModelData(1)
                     }
                 }
                 sender.inventory.addItem(item)
-                sender.sendMessage(Component.text("§a럭키박스 아이템을 지급받았습니다!"))
+                sender.sendMessage(Component.text("럭키박스 아이템을 지급받았습니다!", NamedTextColor.GREEN))
                 return true
             }
-            else -> sender.sendMessage("Usage: /lucky_box <config | item>")
+            else -> sender.sendMessage(Component.text("사용법: /lucky_box <config | item>", NamedTextColor.RED))
         }
         return true
     }
@@ -103,16 +106,13 @@ class LuckyBox : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
         }
     }
 
-    // 중복 로직을 처리할 공통 함수
     private fun handleInventoryRestriction(event: org.bukkit.event.inventory.InventoryEvent, title: Component) {
-        // 1. 뽑기 창 (Lucky Box) - 모든 상호작용 방지
         if (title == Component.text("Lucky Box")) {
             if (event is InventoryClickEvent) event.isCancelled = true
             if (event is InventoryDragEvent) event.isCancelled = true
             return
         }
 
-        // 2. 설정 창 (Lucky Box Config) - 실시간 저장
         if (title == Component.text("Lucky Box Config")) {
             object : BukkitRunnable() {
                 override fun run() {
@@ -157,7 +157,6 @@ class LuckyBox : JavaPlugin(), CommandExecutor, TabCompleter, Listener {
         for (i in 0..53) {
             config.set("lucky_box.items.$i", inventory.getItem(i))
         }
-
         saveConfig()
         logger.info("Lucky Box 설정이 저장되었습니다!")
     }
@@ -168,10 +167,9 @@ class LuckyBoxInventory(private val plugin: LuckyBox, private val inventory: Inv
 
     private var pattern = 0
     private var count = 0
-    private val totalFlips = 30 // 총 애니메이션 횟수
+    private val totalFlips = 30
 
     fun startAnimation(inventory: Inventory, player: Player) {
-        // 1. Config에서 실제 아이템만 필터링 (AIR 무시 로직 유지)
         val configItems = mutableListOf<ItemStack>()
         for (i in 0..53) {
             val item = plugin.config.getItemStack("lucky_box.items.$i")
@@ -180,14 +178,12 @@ class LuckyBoxInventory(private val plugin: LuckyBox, private val inventory: Inv
             }
         }
 
-        // 아이템이 없으면 종료
         if (configItems.isEmpty()) {
-            player.sendMessage(Component.text("§c[Lucky Box] 설정된 아이템이 없습니다! /lb config를 확인해주세요."))
+            player.sendMessage(Component.text("[Lucky Box] 설정된 아이템이 없습니다! /lucky_box config를 확인해주세요.", NamedTextColor.RED))
             player.closeInventory()
             return
         }
 
-        // 2. 점점 느려지는 루프 시작 (Ease-out 로직 유지)
         runVariableTickLoop(inventory, player, 2L, configItems)
     }
 
@@ -198,19 +194,12 @@ class LuckyBoxInventory(private val plugin: LuckyBox, private val inventory: Inv
 
                 if (count < totalFlips) {
                     pattern = 1 - pattern
-
-                    // 배경 패턴 + 중앙 아이템 실시간 변경 + 유리판 이름 변경 적용
                     updatePatternWithRandomItem(inventory, pattern, configItems)
-
-                    // 소리 효과 (피치 상승 로직 유지)
                     player.playSound(player.location, org.bukkit.Sound.BLOCK_NOTE_BLOCK_CHIME, 0.5f, 1.0f + (count.toFloat() / totalFlips))
-
                     count++
-                    // 점점 느려지는 딜레이 계산
                     val nextDelay = if (count > totalFlips * 0.5) currentDelay + 1L else currentDelay
                     runVariableTickLoop(inventory, player, nextDelay, configItems)
                 } else {
-                    // 최종 결과 도출 및 지급
                     finishResult(inventory, player, configItems)
                 }
             }
@@ -218,8 +207,8 @@ class LuckyBoxInventory(private val plugin: LuckyBox, private val inventory: Inv
     }
 
     private fun updatePatternWithRandomItem(inventory: Inventory, patternType: Int, configItems: List<ItemStack>) {
-        // 유리판 이름 회색으로 설정 (LuckyBox)
-        val displayName = Component.text("§8LuckyBox")
+        // §8 대신 NamedTextColor 적용
+        val displayName = Component.text("LuckyBox", NamedTextColor.DARK_GRAY)
 
         val lightBluePane = ItemStack(Material.LIGHT_BLUE_STAINED_GLASS_PANE).apply {
             itemMeta = itemMeta?.apply { displayName(displayName) }
@@ -233,7 +222,6 @@ class LuckyBoxInventory(private val plugin: LuckyBox, private val inventory: Inv
 
         for (i in 0..8) {
             if (i == 4) {
-                // 중앙: 돌아가는 동안 리스트 중 랜덤 아이템 계속 변경 (AIR 제외됨)
                 inventory.setItem(i, configItems.random())
             } else if (i % 2 == 0) {
                 inventory.setItem(i, p1)
@@ -245,52 +233,44 @@ class LuckyBoxInventory(private val plugin: LuckyBox, private val inventory: Inv
 
     private fun finishResult(inventory: Inventory, player: Player, configItems: List<ItemStack>) {
         val resultItem = configItems.random()
-
-        // 결과 확정 및 실제 아이템 지급
         inventory.setItem(4, resultItem)
         player.inventory.addItem(resultItem.clone())
-        // 1. 아이템 이름 성분(Component) 생성
+
         val itemNameComponent = if (resultItem.itemMeta?.hasDisplayName() == true) {
-            // 커스텀 이름이 있으면 그 이름을 그대로 사용
             resultItem.itemMeta.displayName()!!
         } else {
-            // 커스텀 이름이 없으면 마크 기본 번역 키 사용 (유저 언어에 맞춰짐)
             Component.translatable(resultItem.translationKey())
         }
 
         player.playSound(player.location, org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 0.8f)
-        val msg = Component.text("§6[Lucky Box] §f당첨! §b[")
+
+        // 메시지 조립 (Legacy 코드 제거)
+        val msg = Component.text("[Lucky Box] ", NamedTextColor.GOLD)
+            .append(Component.text("당첨! ", NamedTextColor.WHITE))
+            .append(Component.text("[", NamedTextColor.AQUA))
             .append(itemNameComponent)
-            .append(Component.text("§b]§f 아이템이 지급되었습니다."))
+            .append(Component.text("]", NamedTextColor.AQUA))
+            .append(Component.text(" 아이템이 지급되었습니다.", NamedTextColor.WHITE))
+
         player.sendMessage(msg)
     }
 }
+
 class LuckyBoxItem(private val plugin: LuckyBox) : Listener {
 
     @EventHandler
     fun onPlayerInteract(event: PlayerInteractEvent) {
         val player = event.player
-        val item = event.item ?: return // 손에 든 아이템이 없으면 무시
+        val item = event.item ?: return
 
-        // 1. 우클릭 동작인지 확인 (공기 클릭 또는 블록 클릭)
         if (event.action == Action.RIGHT_CLICK_AIR || event.action == Action.RIGHT_CLICK_BLOCK) {
-
-            // 2. 아이템 판별 (종이이면서 CustomModelData가 1인지 확인)
             if (item.type == Material.PAPER && item.itemMeta?.hasCustomModelData() == true && item.itemMeta?.customModelData == 1) {
-
-                // 3. 권한 확인
                 if (!player.hasPermission("luckybox.use")) {
-                    player.sendMessage(Component.text("§c이 아이템을 사용할 권한이 없습니다."))
+                    player.sendMessage(Component.text("이 아이템을 사용할 권한이 없습니다.", NamedTextColor.RED))
                     return
                 }
-
-                // 4. 아이템 1개 소모
                 item.amount -= 1
-
-                // 5. 럭키박스 오픈 로직 실행
                 openLuckyBox(player)
-
-                // 이벤트 취소 (종이가 블록에 써지는 등의 기본 동작 방지)
                 event.isCancelled = true
             }
         }
@@ -298,13 +278,10 @@ class LuckyBoxItem(private val plugin: LuckyBox) : Listener {
 
     private fun openLuckyBox(player: Player) {
         val inventory = Bukkit.createInventory(null, 9, Component.text("Lucky Box"))
-        // 기존에 작성하신 LuckyBoxInventory 클래스 연결
         val luckyBox = LuckyBoxInventory(plugin, inventory)
         plugin.luckyBoxInventories[player.uniqueId] = luckyBox
-
         luckyBox.startAnimation(inventory, player)
         player.openInventory(inventory)
-
-        player.sendMessage(Component.text("§e[Lucky Box] 럭키박스를 열었습니다!"))
+        player.sendMessage(Component.text("[Lucky Box] 럭키박스를 열었습니다!", NamedTextColor.YELLOW))
     }
 }
